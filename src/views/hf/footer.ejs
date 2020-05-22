@@ -1,0 +1,35 @@
+  </div>
+
+  <script type="text/javascript">
+             var count = 0;
+             function addForm(){
+                       var addedFormDiv = document.getElementById("addedFormDiv");
+                       var str = "";
+                       // str+="<br>Link"+" <input type='text' name='tb_"+count+"'><BR>";
+                       str+="<br>Link"+" <input type='text' name='link_url' place-holder=videoId><BR>";
+                      // 추가할 폼(에 들어갈 HTML)
+
+                       var addedDiv = document.createElement("div"); // 폼 생성
+                       addedDiv.id = "added_"+count; // 폼 Div에 ID 부여 (삭제를 위해)
+                       addedDiv.innerHTML  = str; // 폼 Div안에 HTML삽입
+                       addedFormDiv.appendChild(addedDiv); // 삽입할 DIV에 생성한 폼 삽입
+                       count++;
+                       document.baseForm.count.value=count;
+                       // 다음 페이지에 몇개의 폼을 넘기는지 전달하기 위해 히든 폼에 카운트 저장
+             }
+             function delForm(){
+                       var addedFormDiv = document.getElementById("addedFormDiv");
+                       if(count >1){ // 현재 폼이 두개 이상이면
+                                  var addedDiv = document.getElementById("added_"+(--count));
+                                  // 마지막으로 생성된 폼의 ID를 통해 Div객체를 가져옴
+                                  addedFormDiv.removeChild(addedDiv); // 폼 삭제
+                       }else{ // 마지막 폼만 남아있다면
+                                  document.baseForm.reset(); // 폼 내용 삭제
+                       }
+             }
+  </script>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+  </body>
+</html>

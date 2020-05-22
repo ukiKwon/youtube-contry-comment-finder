@@ -1,0 +1,52 @@
+<%- include ('./hf/header') %>
+
+<body onload="addForm();"><!-- 시작할때 이미 한번 호출 -->
+  <center>
+  <form name="baseForm" method="post">
+             <input type="hidden" name="count" value="0">
+             <div id="addedFormDiv"></div><BR> <!-- 폼을 삽입할 DIV -->
+
+             <input type="Button" value="추가" onclick="addForm()">
+             <input type="Button" value="삭제" onclick="delForm()">
+             <input id="find_start" type="Submit" value="완료">
+  </form>
+  </center>
+  <script>
+    $("#find_start").click(function(){
+        // 사용자가 입력한 링크 주소값 할당
+        var linkURL = new Array();
+        $("input[name=link_url]").each(function(index, elem) {
+            linkURL.push($(elem).val());
+        });
+        var api_key = "AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0";
+
+        var tar_url = "https://www.googleapis.com/youtube/v3/comments/part=snippet&key="+api_key+"&videoId="+linkURL[0]+"&maxResults=100";
+
+        $.ajax({
+            url: tar_url,
+            type : 'GET',
+            success:function(data){
+                console.log(data);
+            },
+            error:function(request, status, error) {
+                alert(error);
+            }
+        });
+        //링크 전달, 추후에 데이터 계산용
+        // $.ajax({
+        //     url:'http://localhost:3000/getComment',
+        //     type : 'POST',
+        //     traditional : true, //배열을 넘기도록 한다.
+        //     data : {
+        //         'linker' : linkURL,
+        //     },
+        //     success:function(data){
+        //         console.log("OK");
+        //     },
+        //     error:function(request, status, error) {
+        //         alert(error);
+        //     }
+        // })
+    });
+</script>
+<%- include ('./hf/footer') %>

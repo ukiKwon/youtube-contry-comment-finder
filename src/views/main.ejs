@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <title> Youtube comment country finder</title>
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  </head>
+    <body>
+      <div class="container">
+          <br>
+              <h1 style="text-align:center;">YCC-finder</h1>
+          <form>
+                <div class="form-group">
+                    <input type="text" id="videoId" placeholder="videoId" class="form-control"/>
+                      <br>
+                        <button type="submit" class="btn btn-danger"> Display</button>
+                        <!-- <button onclick="()" class="btn btn-danger">Load</button> -->
+                          <!-- <button onclick="execute()" class="btn btn-danger">Display</button> -->
+                </div>
+          </form>
+          <div id="results"></div>
+      </div>
+  </body>
+      <script>
+          $(document).ready(function() {
+
+              $("form").submit(function(event) {
+                  event.preventDefault();
+                  var videoId = $("#videoId").val();
+                  $("#results").empty();
+                  var api_key = "AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0";
+                  var url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults=100";
+                  //
+                  var result = "";
+                  var cmtArr = new Array();
+                 $.get(url, function(data) {
+                    console.log(data);
+                    for(var i=0; i<data.items.length; ++i) {
+                        result = `
+
+                            <div class="well">
+                                <img class="img-rounded" src="${data.items[i].snippet.topLevelComment.snippet.authorProfileImageUrl}">
+                            </div>
+
+                              <h5>${data.items[i].snippet.topLevelComment.snippet.authorDisplayName}</h5>
+
+
+                            <p>
+                                ${data.items[i].snippet.topLevelComment.snippet.textDisplay}
+                            </p>
+                        `;
+                        // <a href="${data.item[i].snippet.topLevelComment.snippet.authorChannelUrl}" target="_blank">
+                        // </a>
+                        $("#results").append(result);
+                        cmtArr.push(data.items[i].snippet.topLevelComment.snippet.textDisplay);
+                        console.log(cmtArr);
+                    }
+                 })
+                 $.ajax({
+                     url:'http://localhost:3000/getComment',
+                     type : 'POST',
+                     traditional : true, //배열을 넘기도록 한다.
+                     data : {
+                         'cmtArr' : cmtArr,
+                     },
+                     success:function(data){
+                         console.log("OK");
+                     },
+                     error:function(request, status, error) {
+                         alert(error);
+                     }
+                 })
+              })
+
+          })
+      </script>
+      <!-- <script src="https://apis.google.com/js/api.js"></script>
+      <script>
+          function loadClient() {
+            gapi.client.setApiKey("AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0");
+            return gapi.client.load("https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest")
+                .then(function() { console.log("GAPI client loaded for API"); },
+                      function(err) { console.error("Error loading GAPI client for API", err); });
+          }
+          // Make sure the client is loaded before calling this method.
+          function execute() {
+            var videoId = $("#videoId").val();
+            return gapi.client.youtube.commentThreads.list({
+              "part": "snippet",
+              "maxResults": 10,
+              "videoId": videoId
+            })
+                .then(function(response) {
+                        // Handle the results here (response.result has the parsed body).
+                        console.log("Response", response);
+                      },
+                      function(err) { console.error("Execute error", err); });
+          }
+          gapi.load("client");
+      </script> -->
+</html>
