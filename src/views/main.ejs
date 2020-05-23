@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<meta charset="utf-8" />
 <html>
   <head>
       <title> Youtube comment country finder</title>
@@ -14,8 +15,8 @@
                 <div class="form-group">
                     <input type="text" id="videoId" placeholder="videoId" class="form-control"/>
                       <br>
-                        <button type="submit" class="btn btn-danger"> Display</button>
-                        <!-- <button onclick="()" class="btn btn-danger">Load</button> -->
+                        <button id="get_v_cmt" type="submit" class="btn btn-danger"> Get Video CMT</button>
+                        <button id="get_kor_pc" type="submit" class="btn btn-danger"> Get Kor Percent </button>
                           <!-- <button onclick="execute()" class="btn btn-danger">Display</button> -->
                 </div>
           </form>
@@ -23,19 +24,39 @@
       </div>
   </body>
       <script>
+          //유니코드 참조 : https://unicode-table.com/kr/blocks/
+          function is_hangul_char(ch) {
+              c = ch.charCodeAt(0);
+              if( 0x1100<=c && c<=0x11FF ) return true;
+              if( 0x3130<=c && c<=0x318F ) return true;
+              if( 0xAC00<=c && c<=0xD7A3 ) return true;
+              return false;
+          }
+          function is_emoticon_char(ch) {
+              c = ch.charCodeAt(0);
+              if( 0x20A0<=c && c <= 0x2BFF ) return true;
+              else if( 0x1F000<=c && c<=0xE01EF ) return true;
+              return false;
+          }
+          function test(ch) {
+              console.log("["+ch+"]");
+              if(is_hangul_char(ch)) console.log("hangul.");
+              else if(is_emoticon_char(ch)) console.log("special character.");
+              else console.log("not hangul.");
+          }
           $(document).ready(function() {
-
-              $("form").submit(function(event) {
+              // $("form").submit(function(event) {
+              var cmtArr = new Array();
+              //기능1. 단일 비디오 내 댓글 가져오기
+              $('#get_v_cmt').click(function(e) {
                   event.preventDefault();
                   var videoId = $("#videoId").val();
                   $("#results").empty();
                   var api_key = "AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0";
                   var url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults=100";
-                  //
                   var result = "";
-                  var cmtArr = new Array();
                  $.get(url, function(data) {
-                    console.log(data);
+                    // console.log(data);
                     for(var i=0; i<data.items.length; ++i) {
                         result = `
 
@@ -54,49 +75,56 @@
                         // </a>
                         $("#results").append(result);
                         cmtArr.push(data.items[i].snippet.topLevelComment.snippet.textDisplay);
-                        console.log(cmtArr);
                     }
                  })
-                 $.ajax({
-                     url:'http://localhost:3000/getComment',
-                     type : 'POST',
-                     traditional : true, //배열을 넘기도록 한다.
-                     data : {
-                         'cmtArr' : cmtArr,
-                     },
-                     success:function(data){
-                         console.log("OK");
-                     },
-                     error:function(request, status, error) {
-                         alert(error);
-                     }
-                 })
+                 //서버에서 처리하지않음
+                 // $.ajax({
+                 //     url:'http://localhost:3000/getComment',
+                 //     type : 'POST',
+                 //     traditional : true, //배열을 넘기도록 한다.
+                 //     data : {
+                 //         'cmtArr' : cmtArr,
+                 //     },
+                 //     success:function(data){
+                 //         console.log("OK");
+                 //     },
+                 //     error:function(request, status, error) {
+                 //         alert(error);
+                 //     }
+                 // })
               })
-
+              //기능2. 단일 비디오 내 한국인 댓글 판단
+              $('#get_kor_pc').click(function(e) {
+                  if (cmtArr.length == 0) {
+                      alert("댓글을 먼저 불러와주세요");
+                  } else {
+                      var count = 0;
+                      var total = cmtArr.length;
+                      console.log("> video cmt length :" + total);
+                      for (var i=0; i<cmtArr.length; ++i) {
+                          //1. 하이퍼 링크 제거
+                          var tar_str = cmtArr[i];
+                          var find_index = tar_str.lastIndexOf("</a>");
+                          if (find_index != -1) {//하이퍼링크가 있다면
+                              tar_str = cmtArr[i].substr(find_index+5, cmtArr[i].length-find_index+4);
+                          }
+                          //2. 한글 여부 판단
+                          if (is_hangul_char(tar_str)) { count++;}
+                          else {//한글 아닐 때,
+                              //3. 특수문자 확인
+                              //특수 문자는 판정하지 않음 -> 추후에 아이디로 시도를 해볼 수 있음
+                              if (is_emoticon_char(tar_str)) { total--;}
+                              else {//특수문자도 아니라면 그냥 외국인임
+                                    /* 어느 해외인지 시도해볼 수 있음 */
+                              }
+                          }
+                          test(tar_str);
+                      }
+                      var res = count/total * 100;//퍼센트 환산
+                      console.log("> video cmt length :" + total);
+                      alert("Korean pecent : " + res.toFixed(3) + "%");
+                  }
+              })
           })
       </script>
-      <!-- <script src="https://apis.google.com/js/api.js"></script>
-      <script>
-          function loadClient() {
-            gapi.client.setApiKey("AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0");
-            return gapi.client.load("https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest")
-                .then(function() { console.log("GAPI client loaded for API"); },
-                      function(err) { console.error("Error loading GAPI client for API", err); });
-          }
-          // Make sure the client is loaded before calling this method.
-          function execute() {
-            var videoId = $("#videoId").val();
-            return gapi.client.youtube.commentThreads.list({
-              "part": "snippet",
-              "maxResults": 10,
-              "videoId": videoId
-            })
-                .then(function(response) {
-                        // Handle the results here (response.result has the parsed body).
-                        console.log("Response", response);
-                      },
-                      function(err) { console.error("Execute error", err); });
-          }
-          gapi.load("client");
-      </script> -->
 </html>
