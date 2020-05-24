@@ -25,22 +25,55 @@ function commentTread() {
       }
    })
 }
+function getChannelData(url, callback) {
+    var representative = new Array();
+    return new Promise(function(resolve, reject) {
+        $.get(url, function(data) {
+             for(var i=0; i<data.items.length; ++i) {
+                 var rJson = new Object();
+                 rJson.id = data.items[i].id;
+                 rJson.title = data.items[i].snippet.title;
+                 rJson.img = data.items[i].snippet.thumbnails.medium.url;
+                 representative.push(rJson);
+                 result = `
+
+                     <div class="well">
+                         <img class="img-rounded" src="${rJson.img}">
+                     </div>
+
+                       <h5>${rJson.title}</h5>
+                     <p>
+                         ${rJson.id}
+                     </p>
+                 `;
+                 $("#results").append(result);
+             }
+        })
+        if (!representative) {resolve(representative);}
+        else reject(representative);
+    })
+}
+function getCalculate(data, callback) {
+    var count = 0;
+    for (var i=0; i < 1000000;++i) {++count;}
+    callback(count);
+}
 $(document).ready(function() {
     // $("form").submit(function(event) {
     var cmtArr = new Array();
     var api_key = "AIzaSyDvk8_0Ncc7vLvoWT4gfTxeFs5DLIorSZ0";
+    var maxResults = 1;
     //기능1. 단일 비디오 내 댓글 가져오기
     $('#get_v_cmt').click(function(e) {
         e.preventDefault();
         var videoId = $("#videoId").val();
         $("#results").empty();
-        var url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults=100";
+        var url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults="+maxResults;
         var result = "";
        $.get(url, function(data) {
-          // console.log(data);
+          console.log(data);
           for(var i=0; i<data.items.length; ++i) {
               result = `
-
                   <div class="well">
                       <img class="img-rounded" src="${data.items[i].snippet.topLevelComment.snippet.authorProfileImageUrl}">
                   </div>
@@ -111,46 +144,32 @@ $(document).ready(function() {
           e.preventDefault();
           var videoId = $("#videoId").val();
           $("#results").empty();
-          var url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet&key="+api_key+"&channelId="+videoId+"&maxResults=5";
+          var url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet&key="+api_key+"&channelId="+videoId+"&maxResults="+maxResults;
           var result = "";
-          var representative = [];
          //대표 재생목록 가져오기
-         $.get(url, function(data) {
-              for(var i=0; i<data.items.length; ++i) {
-                  var unit = {
-                    "id" : data.items[i].id,
-                    "title" : data.items[i].snippet.title,
-                    "img" : data.items[i].snippet.thumbnails.medium.url
-                  };
-                  representative.push(unit);
-                  result = `
+         var representative = [];//대표재생목록
 
-                      <div class="well">
-                          <img class="img-rounded" src="${unit.img}">
-                      </div>
-
-                        <h5>${unit.title}</h5>
-                      <p>
-                          ${unit.id}
-                      </p>
-                  `;
-                  $("#results").append(result);
-              }
+         getChannelData(url).then(function(data){//수행 순서 1 = getChannelData 호출
+              console.log("2 :" + data[0].id);//수행순서 2 = getChannelData 콜백 호출
+         }).catch(function(err) {
+              console.log("2 :" + err);
          })
-         //대표 재생목록 -> 소속 재생목록 videoId 추출 + 조회수 + 비디오 이름
-         var childVideo = [];
-         for (var i=0; i<representative.length; ++i) {
-            var url = "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key="+api_key+"&playlistId="+representative[i].id+"&maxResults=2";
-            $.get(url, function(data){
-                for (var j=0; j<data.items.length; ++J) {
-                    var unit = {
-                        "id" : data.items[i].resourceId.videoId,
-                        "title" : data.items[i].snippet.title
-                    }
-                    childVideo.push(unit);
-                }
-            })
-         }
+         //대표 재생목록 -> 소속 재생목록
+         let childVideo = new Array();//소속 재생목록
+         // for (var i=0; i<representative.length; ++i) {
+         //    var url = "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key="+api_key+"&playlistId="+jsonObjects.list[i].id+"&maxResults="+maxResults;
+         //    $.get(url, function(data){
+         //        if (!data) {alert("요청 실패");}
+         //        for (var j=0; j<data.items.length; ++j) {
+         //            var unit = new Object();
+         //            rJson.groupId = representative[ele].id;
+         //            rJson.videoid = data.items[i].resourceId.videoId;
+         //            rJson.title = data.items[i].snippet.title;
+         //            childVideo.push(unit);
+         //        }
+         //    })
+         // }
+         // console.log(childVideo);
         //for문 돌면서
           // 댓글 가져오고
           // 한글판별
