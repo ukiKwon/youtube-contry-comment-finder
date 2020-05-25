@@ -1,4 +1,3 @@
-const api_key = "AIzaSyBHY-BGzwAKRttO0uRbV20Xw7TO_vGO_YY";
 const maxResults = 1;
 const maxPage = 3;
 /*
