@@ -2,10 +2,12 @@ const maxResults = 1;
 const maxPage = 1;
 /*
 * 페이지 정보
+  pageInfo = {"nextPage:", "maxResults:"}
 * 비디오 댓글 관련 structure
   cmtInfo = {"imgUrl" : , "userId:" , "comment:" }
   cmtInfoArr = {"nextPageToken" :, "comment_count":, "commentList": [cmtInfo]}
-  videoCmtInfo = {"videoId":, "comment_count":, "korPercent": }
+  videoCmtInfo = {"videoId":, "comment_count":, "korPercent":, "state:"}
+* df
 
 * 재생목록 관련 structure
   videoItem = {"videoid":, title":, "img":, "korPercent":,}
@@ -37,11 +39,11 @@ function displayItem(target) {
         else reject("Err : display source is empty");
     })
 }
-function getVideoComment(_nextpage) {
+function getVideoComment(_pageInfo) {
     return new Promise(function(resolve, reject) {
         const videoId = $("#videoId").val();
-        let url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults="+maxResults;
-        if (_nextpage != "") url += ("&pageToken=" + _nextpage);
+        let url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults="+_pageInfo.maxResults;
+        if (_pageInfo.nextPage != "") url += ("&pageToken=" + _pageInfo.nextPage);
 
         $.get(url, function(data) {
             if (data) resolve(data);
@@ -49,47 +51,46 @@ function getVideoComment(_nextpage) {
         })
     })
 }
+let videoCmtInfo = new Object();//기능1 : 하나의 비디오에 대한 댓글 정보
 function getVideoCommentAll() {
     return new Promise(function(resolve, reject) {
         if (!$("#videoId").val()) { reject("alert : Link address is empty!!!");}
-        // if(!nextpage) { reject("Err : getVideoCommentAll() has no next page");}
         //특정 비디오 들어오면
-        let videoCmtInfo = new Object();//기능1 : 하나의 비디오에 대한 댓글 정보
-        const videoCmtCnt = maxPage * maxResults;
-        videoCmtInfo.videoId = $("#videoId").val();
-        videoCmtInfo.comment_count = 0;
-        videoCmtInfo.korPercent = 0;
+        let pageInfo = new Object();
+        pageInfo.nextPage="";
+        pageInfo.maxResults=maxResults;
 
-        var page = 0;
-        // for (; page<maxPage; page++) {
-        //     let nextpage="";
-            getVideoComment(nextpage)
-            .then(function(comment) { return getBriefComment(comment);})
-            .then(function(commentBrief) {
-                videoCmtInfo.comment_count += commentBrief.comment_count;
-                // console.log("> round " + page + " count :" + videoCmtInfo.korPercent);
-                nextpage = videoCmtInfo.nextPageToken;
-                // console.log(nextpage);
-                return getKorPercent(commentBrief);
-            })
-            .then(function(_korpercent) {
+        getVideoComment(pageInfo)
+        .then(function(comment) { return getBriefComment(comment);})
+        .then(function(brief_cmtInfoArr) {
+            //요청한 수보다 적을 경우 == 자료수가 부족하다면
+            if (brief_cmtInfoArr.comment_count != maxResults) { videoCmtInfo.state = "less";}
+            else {videoCmtInfo.state = "more";}
+            videoCmtInfo.comment_count += brief_cmtInfoArr.comment_count;
+            return getKorPecent(brief_cmtInfoArr);
+        })
+        .then(function(_korpercent) {
+            if (videoCmtInfo.korPercent != 0) {//어느정도 손실 감안.이전값과 2등분한 값을 취함
                 videoCmtInfo.korPercent += _korpercent;
-                if (videoCmtInfo.korPercent != 0) {//어느정도 손실 감안.이전값과 2등분한 값을 취함
-                    videoCmtInfo.korPercent /2;
-                    videoCmtInfo.korPercent = _korpercent;
-                }
-                resolve(videoCmtInfo);
-                // console.log(" > actual round :" + page);
-            })
-            .catch(function(err) { console.log(err);})
-            // console.log("> done!!! yet");
-            // if (videoCmtCnt == videoCmtInfo.comment_count) {   console.log("> done!!! all"); resolve(videoCmtInfo);}
-        // }
+                videoCmtInfo.korPercent /= 2;
+            } else {
+                videoCmtInfo.korPercent =_korpercent;
+            }
+            resolve(videoCmtInfo);
+        })
+        .catch(function(err) { console.log(err);})
     })
 }
-function batchComment(res) {
-    if (res.count == 10);
-    getVideoCommentAll().then(function(res) {batchComment(res););
+let _pageCount = 0;
+function batchComment(_readCount) {
+    if (brief_cmtInfoArr.comment_count == "less"
+        || _pageCount++ >= maxPage
+        || _readCount >= maxPage * maxResults) {
+          _pageCount=0;
+          videoCmtInfo.state = "done";
+          return console.log("done");
+    }
+    getVideoCommentAll().then(function(res) {batchComment(res.comment_count););
 }
 function getBriefComment(data) {
     return new Promise(function(resolve, reject) {
@@ -112,7 +113,8 @@ function getBriefComment(data) {
         }
     })
 }
-function getKorPercent(_cmtInfoArr) {
+function getKorPercent(_cmtInfoArr)
+{
     return new Promise(function(resolve, reject) {
         if (_cmtInfoArr.commentList.length == 0) {
             reject("댓글을 먼저 불러와주세요");
@@ -145,7 +147,8 @@ function getKorPercent(_cmtInfoArr) {
         } else { reject("Err : getKorPercent() cannot process it all");}
     })
 }
-function getPlaylistData() {
+function getPlaylistData()
+{
     return new Promise(function(resolve, reject) {
         let videoId = $("#videoId").val();
         const url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet&key="+api_key+"&channelId="+videoId+"&maxResults="+maxResults;
@@ -155,7 +158,8 @@ function getPlaylistData() {
         })
     })
 }
-function getBriefPlayList(data) {
+function getBriefPlayList(data)
+{
     return new Promise(function(resolve, reject) {
         let videoList = new Array();//대표재생목록
         let result = "";
@@ -185,7 +189,8 @@ function getBriefPlayList(data) {
         }
     })
 }
-function getPlaylistItem(_videoList) {//한 비디오 항목에 대한 재생목록 리스트를 담아야함
+function getPlaylistItem(_videoList)
+{//한 비디오 항목에 대한 재생목록 리스트를 담아야함
     return new Promise(function(resolve, reject) {
           if (!_videoList) reject("Err : getPlaylistItem()-> no playlist item were found");
           let i = 0;
@@ -215,7 +220,13 @@ function getPlaylistItem(_videoList) {//한 비디오 항목에 대한 재생목
            if (i == _videoList.length) { resolve(playListAll);}
     })
 }
-
+function init()
+{
+    videoCmtInfo.videoId = $("#videoId").val();
+    videoCmtInfo.comment_count = 0;
+    videoCmtInfo.korPercent = 0;
+    videoCmtInfo.state = "ready";
+}
 $(document).ready(function() {
     let cmtInfoArr = new Object();//
 
@@ -267,12 +278,7 @@ $(document).ready(function() {
     })
     //기능2. 단일 비디오 내 한국인 댓글 판단
     $('#get_kor_pc').click(function(e) {
-        //  videoCmtInfo = {"videoId":, "comment_count":, "korPercent": }
-        // getVideoCommentAll().then(function(res) {
-        //     alert(res.korPercent);
-        //     console.log(res);
-        // }).catch(function(err) { console.log(err);})
-        //
+        init();
         batchComment();
     })
     //기능3. 채널 내 외국인이 가장 많이 사랑한 영상
