@@ -1,5 +1,5 @@
 const maxResults = 100;
-const maxPage = 5;
+const maxPage = 2;
 /*
 * user defined
 *
@@ -15,12 +15,13 @@ const maxPage = 5;
   videoItem = {"videoid":, title":, "img":, "korPercent":,}
   videoList = [videoItem]
   playListOne = {"groupId": , "item" : videoList}
-  playListAll = {"channelId": , "playList" : playListOne}
+  playListAll = {"channelId": , "playList" : [playListOne]}
 
 */
 //단일 페이지에 대하여 maxResults 사이즈만큼 댓글 로드
 //return : raw data
-function getVideoComment(_pageInfo) {
+function getVideoComment(_pageInfo)
+{
     return new Promise(function(resolve, reject) {
         const videoId = $("#videoId").val();
         let url = "https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&key="+api_key+"&videoId="+videoId+"&maxResults="+_pageInfo.maxResults;
@@ -40,7 +41,7 @@ pageInfo.nextPage="";
 pageInfo.maxResults=maxResults;
 //댓글 리스트에 대하여 한글 비율 계산
 //return : 숫자형
-function getKorPercent(_cmtInfoArr)
+function calKorPercent(_cmtInfoArr)
 {
   return new Promise(function(resolve, reject) {
     if (_cmtInfoArr.commentList.length == 0) {
@@ -54,7 +55,7 @@ function getKorPercent(_cmtInfoArr)
       let tar_str = commentlist[i].comment;
       let find_index = tar_str.lastIndexOf("</a>");
       if (find_index != -1) {//하이퍼링크가 있다면
-        tar_str = tar_str.substr(find_index+5, tar_str.length-find_index+4);
+          tar_str = tar_str.substr(find_index+5, tar_str.length-find_index+4);
       }
       //2. 한글 여부 판단
       if (is_hangul_char(tar_str)) { count++;}
@@ -76,7 +77,8 @@ function getKorPercent(_cmtInfoArr)
 }
 //댓글에 대한 raw한 데이터들에 대하여 관심 데이터만 반환
 //return : cmtInfo
-function getBriefComment(data) {
+function getBriefComment(data)
+{
     return new Promise(function(resolve, reject) {
         if (!data) {reject("Err : getImgTitleText() has no data");}
         let cmtInfoArr = new Object();
@@ -97,41 +99,42 @@ function getBriefComment(data) {
         }
     })
 }
-//복수 페이지에 대하여
-function getVideoCommentAll(_videoCmtInfo)
+//페이지에 대하여 한국인 비율 계산하기
+function getKorPercent(_videoCmtInfo)
 {
   return new Promise(function(resolve, reject) {
     // console.log(_videoCmtInfo);
     if (!$("#videoId").val()) { reject("alert : Link address is empty!!!");}
-    //특정 비디오 들어오면
 
-    console.log(typeof _videoCmtInfo.korPercent)
     getVideoComment(pageInfo)
     .then(function(comment) {
-      console.log("step1"); return getBriefComment(comment);
+      // console.log("step1");
+      return getBriefComment(comment);
     })
     .then(function(brief_cmtInfoArr) {
         //요청한 수보다 적을 경우 == 자료수가 부족하다면
-        console.log("step2");
+        // console.log("step2");
         if (brief_cmtInfoArr.comment_count != maxResults) { _videoCmtInfo.state = "less";}
         else {_videoCmtInfo.state = "more";}
         pageInfo.nextPage = brief_cmtInfoArr.nextPageToken;
         _videoCmtInfo.comment_count += brief_cmtInfoArr.comment_count;
-        return getKorPercent(brief_cmtInfoArr);
+        return calKorPercent(brief_cmtInfoArr);
     })
     .then(function(_korpercent) {
+        // console.log("step3");
         if (_videoCmtInfo.korPercent != 0) {//어느정도 손실 감안.이전값과 2등분한 값을 취함
           _videoCmtInfo.korPercent += _korpercent;
           _videoCmtInfo.korPercent /= 2;
         } else {
           _videoCmtInfo.korPercent = _korpercent;
         }
-        console.log(_videoCmtInfo.korPercent);
+        // console.log(_videoCmtInfo.korPercent);
         resolve(_videoCmtInfo);
     })
     .catch(function(err) { console.log(err);})
   })
 }
+//특정 채널이 가진 대표 재생목록에 대한 raw 정보 불러오기
 function getPlaylistData()
 {
     return new Promise(function(resolve, reject) {
@@ -143,6 +146,8 @@ function getPlaylistData()
         })
     })
 }
+//특정 채널이 가진 대표 재생목록에 대한 간략한 정보 불러오기
+//return : videoList
 function getBriefPlayList(data)
 {
     return new Promise(function(resolve, reject) {
@@ -179,7 +184,6 @@ function getPlaylistItem(_videoList)
     return new Promise(function(resolve, reject) {
           if (!_videoList) reject("Err : getPlaylistItem()-> no playlist item were found");
           let i = 0;
-          console.log(_videoList);
           let playListAll = new Array();//대표 비디오-비디오 목록
           for (; i < _videoList.length; ++i) {
               const url = "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key="+api_key+"&playlistId="+_videoList[i].videoId+"&maxResults="+maxResults;
@@ -188,21 +192,33 @@ function getPlaylistItem(_videoList)
                $.get(url, function(data) {
                      for (var j=0; j<data.items.length; ++j) {
                          let videoItem = new Object();
-                         videoItem.videoid = data.items[i].snippet.resourceId.videoId;
-                         videoItem.title = data.items[i].snippet.title;
+                         videoItem.videoid = data.items[j].snippet.resourceId.videoId;
+                         videoItem.title = data.items[j].snippet.title;
                          videoItem.img = "";
-                         videoItem.korPercent = -1;
+                         videoItem.korPercent = 0;
                          videoList.push(videoItem);
                      }
                      if (j == data.items.length) {
+                          console.log(_videoList[i]);
                           playListOne.groupId = _videoList[i].videoId;
                           playListOne.item = videoList;
                           playListAll.push(playListOne);
                      }
-                     if (data && !playListAll.channelId) { playListAll.channelId = data[0].items[0].snippet.channelId;}
-               })
+                     if (data && !playListAll.channelId) {
+                          playListAll.channelId = data[0].items[0].snippet.channelId;
+                     }
+               }).fail(function(err){
+                    alert(err);
+                })
            }
            if (i == _videoList.length) { resolve(playListAll);}
+           /*
+           * 재생목록 관련 structure
+           videoItem = {"videoId":, title":, "img":, "korPercent":,}
+           videoList = [videoItem]
+           playListOne = {"groupId": , "item" : videoList}
+           playListAll = {"channelId": , "playList" : playListOne}
+           */
     })
 }
 function init(_videoCmtInfo)
@@ -213,19 +229,23 @@ function init(_videoCmtInfo)
     _videoCmtInfo.state = "ready";
 }
 let _pageCount = 0;
-function batchComment(_videoCmtInfo) {
+//복수 페이지에 대한 한국인 비율 계산
+function batchGetKorPercent(_videoCmtInfo) {
   if (_videoCmtInfo.state == "less"
   || _pageCount++ >= maxPage
   || _videoCmtInfo.comment_count >= maxPage * maxResults) {
       _pageCount=0;
       _videoCmtInfo.state = "done";
       console.log(">> all Done");
-      console.log(_videoCmtInfo);
+      // console.log(_videoCmtInfo);
+      //  videoCmtInfo = {"videoId":, "comment_count":, "korPercent":, "state:"}
+      var msg = ">> 총 댓글 개수 : " + _videoCmtInfo.comment_count + "\n >> 한국인 비율 : " + _videoCmtInfo.korPercent.toFixed(3);
+      alert(msg);
       return _videoCmtInfo;
   }
-  getVideoCommentAll(_videoCmtInfo).then(function(res) {
-      console.log(">> cycle" + _pageCount);
-      batchComment(res);
+  getKorPercent(_videoCmtInfo).then(function(res) {
+      // console.log(">> cycle" + _pageCount);
+      batchGetKorPercent(res);
   }).catch(function(err) { console.log(err);})
 }
 $(document).ready(function() {
@@ -288,22 +308,22 @@ $(document).ready(function() {
 
         let videoCmtInfo = new Object();//기능1 : 하나의 비디오에 대한 댓글 정보
         init(videoCmtInfo);
-        batchComment(videoCmtInfo);
+        batchGetKorPercent(videoCmtInfo);
     })
     //기능3. 채널 내 외국인이 가장 많이 사랑한 영상
     $('#get_best_glob').click(function(e) {
         e.preventDefault();
         $("#results").empty();
+
         getPlaylistData()
-        .then(function(videoList_raw) { return getBriefPlayList(videoList_raw);})
-        .then(function(videoList) { return getPlaylistItem(videoList);})//대표 비디오에 대하여 비디오 목록 불러오기
+        .then(function(playlist_raw) { return getBriefPlayList(playlist_raw);})
+        .then(function(playlist_brief) { return getPlaylistItem(playlist_brief);})//대표 비디오에 대하여 비디오 목록 불러오기
+        .then(function(playListAll) {
+            console.log(playListAll);
+        })// 댓글 가져오고
         .catch(function(err) { console.log(err);})
-        .then(function(playListAll) { return getVideoComment(playListAll);})// 댓글 가져오고
         .catch(function(err) { console.log(err);});
-        // .then(function(videocmts) { return getKorPercent(videocmts);})// 한글판별
-        // .catch(function(err) { console.log(err);})
-        // 비디오 이름 + 조회수 + 댓글 퍼센트 기록
-        //댓글 퍼센트 중심으로 정렬
-        //테이블 형태로 보여주기
+
+
     })
 })
