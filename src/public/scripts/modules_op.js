@@ -53,6 +53,16 @@ var cmtInfoArr = function() {
     this.commentList = [];
     return this;
 }
+var playListOne = function(groupId, items) {
+    this.groupId = groupId;
+    this.item = new Array();
+    for (var ele in items) { this.item.push(ele);}
+}
+var playListAll = function(channelId, playlist) {
+    this.channelId = channelId;
+    this.playList = new Array();
+    for (var ele in playlist) { this.playList.push(ele);}
+}
 /*
   * part 1 : Data loader
 */
@@ -233,6 +243,54 @@ function getBriefPlayList(data)
         }
     })
 }
+
+//재생목록별 videoItem 분류작업
+//return : playListAll : 배열 요소 타입 playListOne
+let __playListAll = new playListAll("", new Array());
+function classifyGroupKp(not_used_yet)
+{
+      if (__playlistItemArr.length != __groupKorpercent.length) { return new Error("데이터 로드가 정상적으로 되지 않았습니다.");}
+      return new Promise(function(resolve, reject) {
+          //__playlistItemArr : 배열 요소 타입 : playItem
+          //__groupKorpercent : 배열 요소 타입 : videoItem
+          let i = 0;
+          //같은 그룹은 같은 tiem으로 분류
+          for (; i < __playlistItemArr.length; ++i) {
+              let j = 0;
+              //기존 그룹에 추간
+              for (; j <__playlistItemArr.playList.length; ++j) {
+                  //현재 videoItem의 groupId가 이미 존재하는 지 확인
+                  if (__playlistItemArr.playList[j].groupId == __playlistItemArr[i].groupId) { __playlistItemArr.playList[j].item.push(__playlistItemArr[i]); break;}
+              }
+              //새로 추가
+              if (j == __playlistItemArr.playList.length) {
+                  let plo = new playListOne(__playlistItemArr[i].groupId, new Array(__groupKorpercent[i]));
+              }
+          }
+          if (i == __playlistItemArr.length) {resolve(__playListAll);}
+      });
+}
+//그룹화된 videoItem 정보를 이용하여 KP 구하기
+function calGroupKp(_playlistall) {
+    new Promise(function(resolve, reject) {
+        if (!_playlistall) { reject("Err : calGroupKp() has an empty data");}
+        // videoItem = {"videoId":, title":, "img":, "comment_count":, "korPercent":, "state:"}
+        // playListOne = {"groupId": , "item" : [ videoItem ] }
+        // playListAll = {"channelId": , "playList" : [ playListOne ]}
+        //
+        // playListOne 에 group_korpercent 키 추가하여 진행
+        var i = 0;
+        for (; i < _playlistall.playlist.length; ++i) {
+            let groupKPsum = 0;
+            var j = 0;
+            for (var j = 0; j < _playlistall[i].item.length; ++j) {
+                groupKPsum += _playlistall[i].item[j].korPercent;
+            }
+            if (j == _playlistall[i].item.length) _playlistall[i].group_kp = groupKPsum/_playlistall[i].item.length;
+        }
+        if ( i == _playlistall.playlist.length) { resolve(_playlistall);}
+    });
+}
 /*
    * part 3 : Batch
 */
@@ -275,7 +333,7 @@ function batchGetKorPercent(_videoItem)
 let __groupVideolist_idx = 0;
 let __groupKorpercent = [];
 //비디오 그룹별 한국인 지수 구하기
-function batchGroupKorpercent(_groupVideolist)
+function batchVideoKorpercent(_groupVideolist)
 {
     //test
     if (!_groupVideolist) { throw new Error("batchGroupKorpercent() no data");}
@@ -284,7 +342,7 @@ function batchGroupKorpercent(_groupVideolist)
         return __groupKorpercent;
     }
     getKorPercent(new videoItem(_groupVideolist[__groupVideolist_idx++].videoId, "", ""))
-    .then(function(res) { __groupKorpercent.push(res);batchGroupKorpercent(_groupVideolist);})
+    .then(function(res) { __groupKorpercent.push(res);batchVideoKorpercent(_groupVideolist);})
     .catch(function(err) { console.log(err);})
 }
 /*
@@ -303,13 +361,22 @@ function getChannelData()
       if (_ch == __group_cnt) { console.log("1. getChannelData done"); resolve(__playlistItemArr);}
   })
 }
-//Drive : 비디오 그룹별 한국인 지수 구하기
-function getGroupKorpercent(_glist)
+//Drive : 각 비디오 그룹에 대하여 한국인 지수 구하기
+function getVideoKorpercent(_glist)
 {
     return new Promise(function(resolve, reject) {
-        if (!_glist) { reject ("Err : getGroupKorpercent() has an empty data");}
-        batchGroupKorpercent(_glist);
+        if (!_glist) { reject ("Err : getVideoKorpercent() has an empty data");}
+        batchVideoKorpercent(_glist);
         if (_glist.length == __groupKorpercent.length) { resolve(__groupKorpercent);}
+    })
+}
+//Drive : 그룹별 KP 지수 구하기
+function getGroupKorpercent() {
+    return new Promise(function(resolve, reject) {
+          getVideoKorpercent(__playlistItemArr)
+          .then(function(res) { return classifyGroupKp(res);}).catch(function(err) { console.log(err);})
+          .then(function(res) { return calGroupKp(__playlistItemArr);}).catch(function(err) { console.log(err);})
+          .then(function() { console.log("all passed"); resolve();})
     })
 }
 function init()
@@ -317,7 +384,7 @@ function init()
     let _flush__pageInfo = new pageInfo("", "", maxResults);
     let _flush__groupKorpercent = [];
     let _flush__playlistItemArr = [];
-
+getGroupKorpercent
     __groupVideolist_idx = 0;
     __group_cnt = 0;
     _pageCount = 0;
@@ -396,17 +463,15 @@ $(document).ready(function() {
             $("#get_best_glob").html("채널 KP지수 계산 시작");
         });
         } else {
-
               click_count++;
               click_count /= 2;
               console.log();
-              getGroupKorpercent(__playlistItemArr)
+              getGroupKorpercent()
               .then(function(res) {
-                  console.log("pass2");
+                  console.log("> done all");
+                  console.log(res);
               })
-              .then(function() {
-                  init();
-              })
+              .then(function() { init();}).catch(function(err) { console.log(err);})
         }
     })
 })
