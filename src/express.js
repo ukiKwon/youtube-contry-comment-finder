@@ -29,6 +29,14 @@ app.get('/index', function (req, res) {
 app.get('/main', function (req, res) {
     res.render('main')
 })
+app.post('/classifyVideo', function(req, res) {
+    var groupInfo = req.body.groupInfo;
+    var videoKP = req.body.videoKP;
+    // console.log(req);
+    console.log(groupInfo);
+    console.log(videoKP);
+    res.json("OK");
+})
 /*
   *
   *******  part3.프론트-화면 렌더링 *******
