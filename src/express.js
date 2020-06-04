@@ -32,7 +32,15 @@ app.get('/main', function (req, res) {
 app.post('/classifyVideo', function(req, res) {
     var groupInfo = req.body.groupInfo;
     var videoKP = req.body.videoKP;
-    // console.log(req);
+    /*
+      * 재생목록 관련 structure
+        videoItem = {"videoId":, title":, "img":, "comment_count":, "korPercent":, "state:"}
+        playListOne = {"groupId": , "item" : [ videoItem ] }
+        playListAll = {"channelId": , "playList" : [ playListOne ]}
+
+        playListItem = {"groupId :", "videoId:"}
+        playListItemArr = [ playListItem ]
+    */
     console.log(groupInfo);
     console.log(videoKP);
     res.json("OK");
